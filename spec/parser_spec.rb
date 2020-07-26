@@ -3,43 +3,82 @@ require 'rspec'
 require 'tempfile'
 
 RSpec.describe LogParser do
+  context "with no file passed as an argument" do
+    subject { described_class.new([]) }
 
-  context "when a log file is given" do
+    it "will output a helpful error message" do
+      expect { subject }.to output("You need give me path to a log file if you want me to parse it.\n").to_stdout
+    end
+  end
+
+  context "with any file passed as an argument" do
     let(:test_log_file) { Tempfile.new(['test', '.log']) }
-    let(:argument) { test_log_file.path }
+    let(:argument) { [test_log_file.path] }
 
-    subject { described_class.new(argument).run }
+    subject { described_class.new(argument) }
 
-    after do 
+    after do
       test_log_file.unlink
     end
-      
-    it "can read it" do
-      expect(subject).to eq({})
+
+    it "can read it without exception" do
+      expect(subject.class).to eq(described_class)
     end
+  end
+
+  context "with a log file that is not formatted corectly" do
+    let(:test_log_file) { Tempfile.new(['test', '.log']) }
+    let(:argument) { [test_log_file.path] }
+
+    subject { described_class.new(argument) }
 
     it "gives the user a helpful error message if it cannot be parsed" do
       test_log_file.write("this is not a server log file, just some random strings")
       test_log_file.rewind
 
-      expect(subject).to eq("This is not a valid log file, please check the formatting and try again.")
+      expect { subject }.to output("This is not a valid log file, please check the formatting and try again.\n").to_stdout
+    end
+  end
+
+  context "with a properly formatted log file" do
+    let(:test_log_file) { Tempfile.new(['test', '.log']) }
+    let(:argument) { [test_log_file.path] }
+
+    after do 
+      test_log_file.unlink
     end
 
-    # it "will read each line" do
-    #   pending
-    # end
+    it "will output something to the console" do
+      test_log_file << "/help_page/1 126.318.035.999"
+      test_log_file.rewind
 
-    # it "will add each line to a hash" do
-    #   pending
-    # end
+      expect { described_class.new(argument) }.to output("/help_page/1 1 visits\n/help_page/1 1 unique visits\n").to_stdout
+    end
 
-    # it "will process the hash and display a list of urls with number of visits" do
-      
-    # end
+    it "will output the correct number of visitors and unique visitors" do
+      test_log_file << "/help_page/1 126.318.035.999\n/help_page/1 126.318.035.888\n/help_page/1 126.318.035.038\n/about 127.222.888.999\n/about 127.222.888.999"
+      test_log_file.rewind
 
-    # it "will process the hash and display a list of urls with number of uniq visits" do
-      
-    # end
+      expect { described_class.new(argument) }.to output("/help_page/1 3 visits\n/about 2 visits\n/help_page/1 3 unique visits\n/about 1 unique visits\n").to_stdout
+    end
+  end
+
+  context "with a properly formatted log file that has whitespace" do
+    let(:test_log_file) { Tempfile.new(['test', '.log']) }
+    let(:argument) { [test_log_file.path] }
+
+    subject { described_class.new(argument) }
+
+    after do 
+      test_log_file.unlink
+    end
+
+    it "will not pass validation" do
+      test_log_file << "/help_page/1 126.318.035.038\n/help_page/1 126.318.035.038\n/help_page/1 126.318.035.038\n\n\n\n/help_page/1 126.318.035.038"
+      test_log_file.rewind
+
+      expect { subject }.to output("This is not a valid log file, please check the formatting and try again.\n").to_stdout
+    end
   end
 
   context "when another kind of file is given" do

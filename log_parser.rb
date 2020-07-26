@@ -1,54 +1,62 @@
-# take a user generated log file
-# parse the file and for each line add to a hash url => ip_array
-# process hash to calculate the ordered list with the most views
-# call .uniq on the hash and calculate the views again
-# unit tests for step 1, 2, 3
-# awk as a suggestion 
+# frozen_string_literal: true
 
-# /home 90 visits
-# /about 6 visits
-
+# log parser, to parse log files
 class LogParser
   attr_accessor :log_file_path
 
-  def initialize(path)
-    @log_file_path = path
+  def initialize(args)
+    if args == []
+      puts 'You need give me path to a log file if you want me to parse it.'
+    else
+      @log_file_path = args[0]
+      @lines = File.readlines(@log_file_path)
+      validate
+    end
   end
 
   def run
-    lines = File.readlines(@log_file_path)
+    @collection = {}
+    process
+    show_visitors
+    show_unique_visitors
+  end
 
-    # # validate each line
-    # pattern = /\/\S+ \d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}/  
-    # lines.each do |line|
-    #   pattern =~ line
-    # end
+  def validate
+    pattern = /\/\S+ \d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}/
+    pass = true
 
-    visitors = {}
-
-    lines.each_with_index do |line|
-      visitors[ line.split[0] ] ||= [] 
-      visitors[ line.split[0] ] << line.split[1]
+    @lines.each do |line|
+      unless pattern =~ line
+        puts 'This is not a valid log file, please check the formatting and try again.'
+        pass = false
+        return
+      end
     end
 
-    sorted = visitors.sort_by {|key, value| value.count }.reverse!.to_h
-
-    sorted.each do |key, value|
-      puts "#{key} #{value.count} visits"
+    if pass == true
+      run
     end
+  end
 
-    puts "=="
-
-    uniqe_visitors = visitors.each_value { |value| value.uniq! }
-    uniqe_sorted = uniqe_visitors.sort_by {|key, value| value.count }.reverse!.to_h
-
-    uniqe_sorted.each do |key, value|
-      puts "#{key} #{value.count} uniqe visits"
+  def process
+    @lines.each do |line|
+      @collection[line.split[0]] ||= []
+      @collection[line.split[0]] << line.split[1]
     end
-  end  
+  end
+
+  def show_visitors
+    @collection.sort_by { |_key, value| value.count }.reverse.to_h.each { |k, v| puts "#{k} #{v.count} visits" }
+  end
+
+  def show_unique_visitors
+    @collection.each_value { |value| value.uniq! }
+               .sort_by { |_key, value| value.count }
+               .reverse.to_h.each { |key, value| puts "#{key} #{value.count} unique visits" }
+  end
 end
 
 # Make the file runnable from the command line
 if $PROGRAM_NAME == __FILE__
-  LogParser.new(ARGV).run
+  LogParser.new(ARGV)
 end
