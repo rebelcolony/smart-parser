@@ -5,12 +5,16 @@ class LogParser
   attr_accessor :log_file_path
 
   def initialize(args)
-    if args == []
+    if args == [] || args.length > 1 || args[0] !~ /.log/
       puts 'You need give me path to a log file if you want me to parse it.'
     else
       @log_file_path = args[0]
       @lines = File.readlines(@log_file_path)
-      validate
+      if @lines == []
+        puts 'This file is blank, please check the formatting and try again.'
+      else
+        validate
+      end
     end
   end
 
@@ -33,9 +37,7 @@ class LogParser
       end
     end
 
-    if pass == true
-      run
-    end
+    pass == true ? run : nil
   end
 
   def process
